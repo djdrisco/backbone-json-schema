@@ -1,6 +1,7 @@
 NOTE
 ====
-This is a patched and npm-published version of https://github.com/redpie/backbone-schema
+This repository https://github.com/djdrisco/backbone-json-schema
+This is fork of https://github.com/reggino/backbone-json-schema
 
 Backbone.Schema
 ===============

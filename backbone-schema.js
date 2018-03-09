@@ -642,7 +642,18 @@
                 break;
 
                 // These types are not currently supported
+                //added to support nested arrays
             case 'array':
+                typeName = (schema.title ? collectionName : items.type.charAt(0).toUpperCase() + items.type.slice(1)) + 'Collection';
+                // Determine the base collection starting with the collection regsitered against the schemaId and
+                // lastly try the SchemaFactory default baseValueCollection
+                BaseCollection = this.registeredSchemaTypes[schemaId] || this.baseValueCollection;
+                // Ensure the base collection is of type "SchemaValueCollection"
+                if(!BaseCollection.isSchemaValueCollection) {
+                    throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaValueCollection');
+                }
+                break;
+
             case 'any':
             case 'null':
                 throw new Error('Unsupport items type:' + items.type);
