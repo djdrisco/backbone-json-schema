@@ -960,7 +960,7 @@
 
             //new
             var rtnOfValidate;
-            rtnOfValidate = this.ajvValidate(options);
+            rtnOfValidate = this.ajvValidate(undefined, options);
             if(rtnOfValidate===undefined){
                 return true; //no errors returned
             }
@@ -969,17 +969,89 @@
             }
         },
 
+        ajvValidate: function(attributes, options){
 
-        ajvValidate: function(options){
+            // If no attributes are supplied, then validate all schema properties
+            // by building an attributes array containing all properties.
+            if(attributes === undefined) {
+                attributes = {};
+                // Produce a list of all fields and their values.
+                _.each(this.schema.properties, function(value, key) {
+                    attributes[key] = this.attributes[key];
+                }, this);
+                // Add any attributes that do not appear in schema
+                _.each(this.attributes, function(value, key) {
+                    if (attributes[key] === undefined){
+                        attributes[key] = this.attributes[key];
+                    }
+                }, this);
+            }
+
+            // Dispose of previous validation models
+            _.each(this.validation.attributes, function(attribute, key) {
+                delete this.validation.attributes[key];
+                if(attribute.dispose) {
+                    attribute.dispose();
+                }
+            }, this);
+
             var ajv = new Ajv({allErrors: true});
             var ajvCheckValidation = ajv.compile(this.schema);
             var validBoolean = ajvCheckValidation(this.toJSON());
 
-            if(validBoolean){
-                return;
-            }else{
-                //return errors
-                return ajvCheckValidation.errors;
+            // errors get stored in errors array
+            var errors = ajvCheckValidation.errors;
+
+
+            //attributeErrors.push({
+            //     level: 'error',
+            //     rule: 'divisibleBy',
+            //     message: '%(title) is not divisible by %(divisibleBy)',
+            //     values: {
+            //         'title': schemaTitle,
+            //         'divisibleBy': schemaProperty.divisibleBy
+            //     }
+            // });
+
+
+
+            //loop thru attributes
+            //for each attribute look up in errors to see if any errors for attribute
+            //then add to to this.validate's collection of errors
+
+            _.each(attributes, function(value, key) {
+
+                var attributeError = errors.find(function(element){
+
+                    var elementDataPathArray = element.dataPath.split('.');
+
+                    if(_.isUndefined(elementDataPathArray)===false) {
+                        if (elementDataPathArray[0] === "") {
+                            elementDataPathArray.splice(0, 1);
+                        }
+
+                        if(elementDataPathArray[0]===key){
+                            return element;
+                        }
+                    }
+                });
+
+                var attributeErrors = [];
+
+                if(attributeError!==undefined) {
+                    attributeErrors.push(attributeError);
+                }
+
+                if(attributeErrors.length > 0) {
+                    this.validation.set(key, new ValidationErrorsCollection(attributeErrors));
+                }
+
+            }, this);
+
+            // Return nothing on success
+            if(errors.length > 0) {
+                log('Validation failed: ', errors);
+                return errors;
             }
 
         },
