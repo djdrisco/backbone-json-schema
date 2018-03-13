@@ -1,20 +1,20 @@
 /**
  * Backbone-schema.js 0.1.0
  * (c) 2012 Marcus Mac Innes, Redpie
- *
+ * Updated by David Driscoll, CFPB
  * Backbone-schema may be freely distributed under the MIT license
  * For details and documentation: https://github.com/redpie/backbone-schema
  * Depends on Backbone (and thus on Underscore as well): https://github.com/documentcloud/backbone
  */
 (function(moduleFactory) {
     if(typeof exports === 'object') {
-        module.exports = moduleFactory(require('underscore'), require('backbone'));
+        module.exports = moduleFactory(require('underscore'), require('backbone'), require('ajv'));
     } else if(typeof define === 'function' && define.amd) {
-        define(['underscore', 'backbone'], moduleFactory);
+        define(['underscore', 'backbone', 'ajv'], moduleFactory);
     } else {
-        window.Backbone.Schema = moduleFactory(window._, window.Backbone);
+        window.Backbone.Schema = moduleFactory(window._, window.Backbone, window.Ajv);
     }
-}(function(_, Backbone, undefined) {
+}(function(_, Backbone, Ajv, undefined) {
     var Schema = {};
 
     function log() {}
@@ -172,61 +172,61 @@
      */
     var SchemaFactory = Schema.Factory = function SchemaFactory(options) {
 
-            // Initialise the options object
-            options = options || {};
-            this.options = options;
+        // Initialise the options object
+        options = options || {};
+        this.options = options;
 
-            /**
-             * Maintains a list of registered schemas, indexed by schema.id
-             * @type {Object}
-             */
-            this.registeredSchemas = {};
+        /**
+         * Maintains a list of registered schemas, indexed by schema.id
+         * @type {Object}
+         */
+        this.registeredSchemas = {};
 
-            /**
-             * Maintains a list of registered models, indexed by schema.id
-             * @type {Object}
-             */
-            this.registeredSchemaTypes = {};
+        /**
+         * Maintains a list of registered models, indexed by schema.id
+         * @type {Object}
+         */
+        this.registeredSchemaTypes = {};
 
-            /**
-             * Maintains a list of parsed schemas, indexed by schema.id
-             * @type {Object}
-             */
-            this.parsedSchemaCache = {};
+        /**
+         * Maintains a list of parsed schemas, indexed by schema.id
+         * @type {Object}
+         */
+        this.parsedSchemaCache = {};
 
-            /**
-             * Maintains a list of constructed Models and Collections, indexed by schema.id
-             * @type {Object}
-             */
-            this.typeCache = {};
+        /**
+         * Maintains a list of constructed Models and Collections, indexed by schema.id
+         * @type {Object}
+         */
+        this.typeCache = {};
 
-            /**
-             * Maintains a list of all instantiated models
-             * @type {Object}
-             * @private
-             */
-            this.instanceCache = {};
+        /**
+         * Maintains a list of all instantiated models
+         * @type {Object}
+         * @private
+         */
+        this.instanceCache = {};
 
-            // Ensure the base model is of type SchemaModel
-            if(options.model && !(typeOf(options.model, SchemaModel))) {
-                throw new Error("options.model MUST extend Backbone.Schema.Model");
-            }
-            // Ensure the base model is of type SchemaCollection
-            if(options.collection && !(typeOf(options.collection, SchemaCollection))) {
-                throw new Error("options.collection MUST extend Backbone.Schema.Collection");
-            }
-            // Ensure the base model is of type SchemaValueCollection
-            if(options.valueCollection && !(typeOf(options.valueCollection, SchemaValueCollection))) {
-                throw new Error("options.valueCollection MUST extend Backbone.Schema.ValueCollection");
-            }
+        // Ensure the base model is of type SchemaModel
+        if(options.model && !(typeOf(options.model, SchemaModel))) {
+            throw new Error("options.model MUST extend Backbone.Schema.Model");
+        }
+        // Ensure the base model is of type SchemaCollection
+        if(options.collection && !(typeOf(options.collection, SchemaCollection))) {
+            throw new Error("options.collection MUST extend Backbone.Schema.Collection");
+        }
+        // Ensure the base model is of type SchemaValueCollection
+        if(options.valueCollection && !(typeOf(options.valueCollection, SchemaValueCollection))) {
+            throw new Error("options.valueCollection MUST extend Backbone.Schema.ValueCollection");
+        }
 
-            // All models created by this factory will be of the provided type or SchemaModel
-            this.baseModel = options.model || SchemaModel;
-            // All collections created by this factory will be of the provided type or SchemaCollection
-            this.baseCollection = options.collection || SchemaCollection;
-            // All value collections created by this factory will be of the provided type or SchemaValueCollection
-            this.baseValueCollection = options.valueCollection || SchemaValueCollection;
-        };
+        // All models created by this factory will be of the provided type or SchemaModel
+        this.baseModel = options.model || SchemaModel;
+        // All collections created by this factory will be of the provided type or SchemaCollection
+        this.baseCollection = options.collection || SchemaCollection;
+        // All value collections created by this factory will be of the provided type or SchemaValueCollection
+        this.baseValueCollection = options.valueCollection || SchemaValueCollection;
+    };
 
     SchemaFactory.prototype = {
 
@@ -383,7 +383,22 @@
          */
         _removeTrailingHash: function(schemaId) {
             // Remove trailing #
-            return schemaId !== undefined && schemaId.length > 1 ? (schemaId.charAt(schemaId.length - 1) === '#' ? schemaId.slice(0, -1) : schemaId) : undefined;
+            //old
+            //return schemaId !== undefined && schemaId.length > 1
+            //    ? (schemaId.charAt(schemaId.length - 1) === '#' ? schemaId.slice(0, -1) : schemaId) : undefined;
+
+            //new
+            if(_.isUndefined(schemaId)===false){
+                if(schemaId.length > 1){
+                    return schemaId.charAt(schemaId.length - 1) === '#' ? schemaId.slice(0, -1) : schemaId
+                }
+                else{
+                    return undefined;
+                }
+            }
+            else{
+                return undefined;
+            }
         },
 
         /**
@@ -564,16 +579,16 @@
 
                     // Only types "object" and "array" map to relations
                     switch(property.type) {
-                    case 'object':
-                        // Found a HasOne relation, so create a corresponding model
-                        schemaRelations[key] = this._createModel(property, options);
-                        break;
-                    case 'array':
-                        // Found a HasMany relation, so create a corresponding collection
-                        schemaRelations[key] = this._createCollection(property, options);
-                        break;
-                    default:
-                        break;
+                        case 'object':
+                            // Found a HasOne relation, so create a corresponding model
+                            schemaRelations[key] = this._createModel(property, options);
+                            break;
+                        case 'array':
+                            // Found a HasMany relation, so create a corresponding collection
+                            schemaRelations[key] = this._createCollection(property, options);
+                            break;
+                        default:
+                            break;
                     }
                 }, this);
             }
@@ -610,56 +625,56 @@
             // Depending on the items.type we need to create a different base collection
             switch(items.type) {
                 // Create a model based collection for object types
-            case 'object':
-                // Create the model type from the items properties
-                model = this._createModel(items, options);
-                // Strip the word "Model" (5 letters) from the end of the model's schemaModelType
-                typeName = (schema.title ? collectionName : model.typeName.slice(0, -5)) + 'Collection';
+                case 'object':
+                    // Create the model type from the items properties
+                    model = this._createModel(items, options);
+                    // Strip the word "Model" (5 letters) from the end of the model's schemaModelType
+                    typeName = (schema.title ? collectionName : model.typeName.slice(0, -5)) + 'Collection';
 
-                // Determine the base collection starting with the baseCollection passed in above,
-                // next try the a collection regsitered against the schemaId and
-                // lastly try the SchemaFactory default baseCollection
-                BaseCollection = baseCollection || this.registeredSchemaTypes[schemaId] || this.baseCollection;
-                // Ensure the base collection is of type "SchemaCollection"
-                if(!BaseCollection.isSchemaCollection) {
-                    throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaCollection');
-                }
-                break;
+                    // Determine the base collection starting with the baseCollection passed in above,
+                    // next try the a collection regsitered against the schemaId and
+                    // lastly try the SchemaFactory default baseCollection
+                    BaseCollection = baseCollection || this.registeredSchemaTypes[schemaId] || this.baseCollection;
+                    // Ensure the base collection is of type "SchemaCollection"
+                    if(!BaseCollection.isSchemaCollection) {
+                        throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaCollection');
+                    }
+                    break;
 
                 // Create a value based collection for value types
-            case 'string':
-            case 'number':
-            case 'integer':
-            case 'boolean':
-                typeName = (schema.title ? collectionName : items.type.charAt(0).toUpperCase() + items.type.slice(1)) + 'Collection';
-                // Determine the base collection starting with the collection regsitered against the schemaId and
-                // lastly try the SchemaFactory default baseValueCollection
-                BaseCollection = this.registeredSchemaTypes[schemaId] || this.baseValueCollection;
-                // Ensure the base collection is of type "SchemaValueCollection"
-                if(!BaseCollection.isSchemaValueCollection) {
-                    throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaValueCollection');
-                }
-                break;
+                case 'string':
+                case 'number':
+                case 'integer':
+                case 'boolean':
+                    typeName = (schema.title ? collectionName : items.type.charAt(0).toUpperCase() + items.type.slice(1)) + 'Collection';
+                    // Determine the base collection starting with the collection regsitered against the schemaId and
+                    // lastly try the SchemaFactory default baseValueCollection
+                    BaseCollection = this.registeredSchemaTypes[schemaId] || this.baseValueCollection;
+                    // Ensure the base collection is of type "SchemaValueCollection"
+                    if(!BaseCollection.isSchemaValueCollection) {
+                        throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaValueCollection');
+                    }
+                    break;
 
                 // These types are not currently supported
                 //added to support nested arrays
-            case 'array':
-                typeName = (schema.title ? collectionName : items.type.charAt(0).toUpperCase() + items.type.slice(1)) + 'Collection';
-                // Determine the base collection starting with the collection regsitered against the schemaId and
-                // lastly try the SchemaFactory default baseValueCollection
-                BaseCollection = this.registeredSchemaTypes[schemaId] || this.baseValueCollection;
-                // Ensure the base collection is of type "SchemaValueCollection"
-                if(!BaseCollection.isSchemaValueCollection) {
-                    throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaValueCollection');
-                }
-                break;
+                case 'array':
+                    typeName = (schema.title ? collectionName : items.type.charAt(0).toUpperCase() + items.type.slice(1)) + 'Collection';
+                    // Determine the base collection starting with the collection regsitered against the schemaId and
+                    // lastly try the SchemaFactory default baseValueCollection
+                    BaseCollection = this.registeredSchemaTypes[schemaId] || this.baseValueCollection;
+                    // Ensure the base collection is of type "SchemaValueCollection"
+                    if(!BaseCollection.isSchemaValueCollection) {
+                        throw new Error('Base collection for schema ' + schemaId + ' is not a SchemaValueCollection');
+                    }
+                    break;
 
-            case 'any':
-            case 'null':
-                throw new Error('Unsupport items type:' + items.type);
+                case 'any':
+                case 'null':
+                    throw new Error('Unsupport items type:' + items.type);
 
-            default:
-                throw new Error('Unknown items type: ' + items.type);
+                default:
+                    throw new Error('Unknown items type: ' + items.type);
             }
 
             log('Create Custom Schema Collection Type: ' + typeName);
@@ -898,18 +913,30 @@
             if(this.schema) {
                 _.each(this.schema.properties, function(property, name) {
                     var attribute = this.attributes[name];
-                    if ([undefined, null].indexOf(attribute) === -1) {
+
+                    if(_.isUndefined(attribute)===false&&_.isNull(attribute)===false){
                         var value;
                         if(this.schemaRelations[name]) {
                             value = attribute.toJSON(options);
                         } else {
                             value = attribute;
                         }
-                        if(value !== undefined) {
-                            if(toReturn === undefined) {
-                                toReturn = {};
+
+                        if(_.isUndefined(value) === false ) {
+
+                            if(_.isArray(value)===false) {
+                                if (_.isUndefined(toReturn) === true) {
+                                    toReturn = {};
+                                }
+                                toReturn[name] = value;
                             }
-                            toReturn[name] = value;
+                            else if (_.isArray(value)===true && value.length > 0){
+                                if (_.isUndefined(toReturn) === true) {
+                                    toReturn = {};
+                                }
+                                toReturn[name] = value;
+
+                            }
                         }
                     }
                 }, this);
@@ -928,7 +955,33 @@
          * @return {Boolean}         Returns true if valid, otherwise false
          */
         isValid: function(options) {
-            return this.validate(undefined, options) === undefined;
+            //old
+            //return this.validate(undefined, options) === undefined;
+
+            //new
+            var rtnOfValidate;
+            rtnOfValidate = this.ajvValidate(options);
+            if(rtnOfValidate===undefined){
+                return true; //no errors returned
+            }
+            else{
+                return false; //errors detected
+            }
+        },
+
+
+        ajvValidate: function(options){
+            var ajv = new Ajv({allErrors: true});
+            var ajvCheckValidation = ajv.compile(this.schema);
+            var validBoolean = ajvCheckValidation(this.toJSON());
+
+            if(validBoolean){
+                return;
+            }else{
+                //return errors
+                return ajvCheckValidation.errors;
+            }
+
         },
 
         _validate: function(attributes, options) {
@@ -1069,102 +1122,102 @@
                 // Validate the type of each attribute
                 switch(schemaType) {
 
-                case 'object':
-                    if(!isModel) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a model',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'object':
+                        if(!isModel) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a model',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'array':
-                    if(!isCollection) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a collection',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'array':
+                        if(!isCollection) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a collection',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'string':
-                    if(!isString) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a string',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'string':
+                        if(!isString) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a string',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'number':
-                    if(!isNumber) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a number',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'number':
+                        if(!isNumber) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a number',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'integer':
-                    if(!isInteger) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a integer',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'integer':
+                        if(!isInteger) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a integer',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'boolean':
-                    if(!isBoolean) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be a boolean',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'boolean':
+                        if(!isBoolean) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be a boolean',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'null':
-                    if(!isNull) {
-                        errors.push({
-                            level: 'error',
-                            rule: 'type',
-                            message: '%(title) should be null',
-                            values: {
-                                'title': schemaTitle
-                            }
-                        });
-                    }
-                    break;
+                    case 'null':
+                        if(!isNull) {
+                            errors.push({
+                                level: 'error',
+                                rule: 'type',
+                                message: '%(title) should be null',
+                                values: {
+                                    'title': schemaTitle
+                                }
+                            });
+                        }
+                        break;
 
-                case 'any':
-                    break;
+                    case 'any':
+                        break;
 
-                default:
-                    throw new Error('Unknown Schema type: ' + schemaType);
+                    default:
+                        throw new Error('Unknown Schema type: ' + schemaType);
                 }
 
                 if(isRelation) {
@@ -1440,8 +1493,8 @@
             }
 
             if(schema.uniqueItems != undefined && !Validators.uniqueItems(this.models, function(model) {
-                return model.cid;
-            })) {
+                    return model.cid;
+                })) {
                 errors.push({
                     level: 'error',
                     rule: 'uniqueItems',
@@ -1473,8 +1526,8 @@
             var errors = [];
 
             if(_.any(this.models, function(model) {
-                return !model.isValid(options);
-            })) {
+                    return !model.isValid(options);
+                })) {
                 errors.push({
                     level: 'error',
                     rule: 'relation',
@@ -1669,25 +1722,25 @@
 
             var validator;
             switch(this.schema.type) {
-            case 'string':
-                validator = _.isString;
-                break;
-            case 'integer':
-                validator = function(object) {
-                    return typeof n === 'number' && n % 1 === 0;
-                };
-                break;
-            case 'number':
-                validator = _.isNumber;
-                break;
-            default:
-                break;
+                case 'string':
+                    validator = _.isString;
+                    break;
+                case 'integer':
+                    validator = function(object) {
+                        return typeof n === 'number' && n % 1 === 0;
+                    };
+                    break;
+                case 'number':
+                    validator = _.isNumber;
+                    break;
+                default:
+                    break;
             }
 
             if(validator) {
                 if(_.any(this.models, function(model) {
-                    return !validator(model);
-                })) {
+                        return !validator(model);
+                    })) {
                     errors.push({
                         level: 'error',
                         rule: 'value',
@@ -1846,7 +1899,7 @@
         if((struct = /^(\d{4}|[+\-]\d{6})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{3}))?)?(?:(Z)|([+\-])(\d{2})(?::(\d{2}))?)?)?$/.exec(date))) {
             // avoid NaN timestamps caused by “undefined” values being passed to Date.UTC
             for(var i = 0, k;
-            (k = numericKeys[i]); ++i) {
+                (k = numericKeys[i]); ++i) {
                 struct[k] = +struct[k] || 0;
             }
 
@@ -1929,49 +1982,49 @@
         format: function(value, format) {
             switch(format) {
 
-            case 'color':
-                return this.pattern(value, "^#[A-F0-9]{6}|aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|darkblue|darkcyan|darkgoldenrod|darkgray|darkgreen|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|darksalmon|darkseagreen|darkslateblue|darkslategray|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dodgerblue|firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|green|greenyellow|honeydew|hotpink|indianred |indigo |ivory|khaki|lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgrey|lightgreen|lightpink|lightsalmon|lightseagreen|lightskyblue|lightslategray|lightsteelblue|lightyellow|lime|limegreen|linen|magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|papayawhip|peachpuff|peru|pink|plum|powderblue|purple|red|rosybrown|royalblue|saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|snow|springgreen|steelblue|tan|teal|thistle|tomato|turquoise|violet|wheat|white|whitesmoke|yellow|yellowgreen$");
+                case 'color':
+                    return this.pattern(value, "^#[A-F0-9]{6}|aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanchedalmond|blue|blueviolet|brown|burlywood|cadetblue|chartreuse|chocolate|coral|cornflowerblue|cornsilk|crimson|cyan|darkblue|darkcyan|darkgoldenrod|darkgray|darkgreen|darkkhaki|darkmagenta|darkolivegreen|darkorange|darkorchid|darkred|darksalmon|darkseagreen|darkslateblue|darkslategray|darkturquoise|darkviolet|deeppink|deepskyblue|dimgray|dodgerblue|firebrick|floralwhite|forestgreen|fuchsia|gainsboro|ghostwhite|gold|goldenrod|gray|green|greenyellow|honeydew|hotpink|indianred |indigo |ivory|khaki|lavender|lavenderblush|lawngreen|lemonchiffon|lightblue|lightcoral|lightcyan|lightgoldenrodyellow|lightgrey|lightgreen|lightpink|lightsalmon|lightseagreen|lightskyblue|lightslategray|lightsteelblue|lightyellow|lime|limegreen|linen|magenta|maroon|mediumaquamarine|mediumblue|mediumorchid|mediumpurple|mediumseagreen|mediumslateblue|mediumspringgreen|mediumturquoise|mediumvioletred|midnightblue|mintcream|mistyrose|moccasin|navajowhite|navy|oldlace|olive|olivedrab|orange|orangered|orchid|palegoldenrod|palegreen|paleturquoise|palevioletred|papayawhip|peachpuff|peru|pink|plum|powderblue|purple|red|rosybrown|royalblue|saddlebrown|salmon|sandybrown|seagreen|seashell|sienna|silver|skyblue|slateblue|slategray|snow|springgreen|steelblue|tan|teal|thistle|tomato|turquoise|violet|wheat|white|whitesmoke|yellow|yellowgreen$");
 
-            case 'style':
-                // TODO:
-                return true;
+                case 'style':
+                    // TODO:
+                    return true;
 
-            case 'phone':
-                // from http://blog.stevenlevithan.com/archives/validate-phone-number
-                return this.pattern(value, "^\\+(?:[0-9]\\x20?){6,14}[0-9]$");
+                case 'phone':
+                    // from http://blog.stevenlevithan.com/archives/validate-phone-number
+                    return this.pattern(value, "^\\+(?:[0-9]\\x20?){6,14}[0-9]$");
 
-            case 'uri':
-                // from http://snipplr.com/view/6889/
-                return this.pattern(value, "^(?:https?|ftp)://.+\\..+$");
+                case 'uri':
+                    // from http://snipplr.com/view/6889/
+                    return this.pattern(value, "^(?:https?|ftp)://.+\\..+$");
 
-            case 'email':
-                // from http://fightingforalostcause.net/misc/2006/compare-email-regex.php
-                return this.pattern(value, '^[-a-z0-9~!$%^&*_=+}{\'?]+(\\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\\.[-a-z0-9_]+)*\\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}))(:[0-9]{1,5})?$');
+                case 'email':
+                    // from http://fightingforalostcause.net/misc/2006/compare-email-regex.php
+                    return this.pattern(value, '^[-a-z0-9~!$%^&*_=+}{\'?]+(\\.[-a-z0-9~!$%^&*_=+}{\'?]+)*@([a-z0-9_][-a-z0-9_]*(\\.[-a-z0-9_]+)*\\.(aero|arpa|biz|com|coop|edu|gov|info|int|mil|museum|name|net|org|pro|travel|mobi|[a-z][a-z])|([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}))(:[0-9]{1,5})?$');
 
-            case 'ip-address':
-                return this.pattern(value, "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
+                case 'ip-address':
+                    return this.pattern(value, "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
 
-            case 'ipv6':
-                return this.pattern(value, "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
+                case 'ipv6':
+                    return this.pattern(value, "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}");
 
                 // TODO
                 // case *various mime-types*
-            case 'date-time':
-            case 'date':
-            case 'time':
-            case 'utc-millisec':
-            case 'regex':
-            case 'street-address':
-            case 'locality':
-            case 'region':
-            case 'postal-code':
-            case 'country':
-                log('WARNING - Validation not implemented for format:' + format);
-                return true;
+                case 'date-time':
+                case 'date':
+                case 'time':
+                case 'utc-millisec':
+                case 'regex':
+                case 'street-address':
+                case 'locality':
+                case 'region':
+                case 'postal-code':
+                case 'country':
+                    log('WARNING - Validation not implemented for format:' + format);
+                    return true;
 
-            default:
-                log('WARNING - Unknown validation format:' + format);
-                return true;
+                default:
+                    log('WARNING - Unknown validation format:' + format);
+                    return true;
             }
         },
 
