@@ -1003,26 +1003,17 @@
             var errors = ajvCheckValidation.errors;
 
 
-            //attributeErrors.push({
-            //     level: 'error',
-            //     rule: 'divisibleBy',
-            //     message: '%(title) is not divisible by %(divisibleBy)',
-            //     values: {
-            //         'title': schemaTitle,
-            //         'divisibleBy': schemaProperty.divisibleBy
-            //     }
-            // });
-
-
-
             //loop thru attributes
             //for each attribute look up in errors to see if any errors for attribute
             //then add to to this.validate's collection of errors
 
             _.each(attributes, function(value, key) {
 
-                var attributeError = errors.find(function(element){
 
+                var attributeErrors = [];
+
+                //use filter
+                attributeErrors = _.filter(errors, function(element){
                     var elementDataPathArray = element.dataPath.split('.');
 
                     if(_.isUndefined(elementDataPathArray)===false) {
@@ -1031,16 +1022,18 @@
                         }
 
                         if(elementDataPathArray[0]===key){
-                            return element;
+                            return true;
+                        }
+                        else{
+                            return false;
                         }
                     }
+                    else{
+                        return false;
+                    }
+
                 });
 
-                var attributeErrors = [];
-
-                if(attributeError!==undefined) {
-                    attributeErrors.push(attributeError);
-                }
 
                 if(attributeErrors.length > 0) {
                     this.validation.set(key, new ValidationErrorsCollection(attributeErrors));
