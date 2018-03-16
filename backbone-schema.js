@@ -1042,7 +1042,7 @@
             }, this);
 
             // Return nothing on success
-            if(errors.length > 0) {
+            if(errors!==undefined && _.isArray(errors) && errors.length > 0) {
                 log('Validation failed: ', errors);
                 return errors;
             }
