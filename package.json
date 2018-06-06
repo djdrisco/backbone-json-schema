@@ -6,7 +6,9 @@
   "contributors"  : "Listed at <https://github.com/redpie/backbone-schema/graphs/contributors>",
   "dependencies"  : {
     "backbone":   ">=0.9.2",
-    "underscore": ">=1.4.2"
+    "underscore": ">=1.4.2",
+    "ajv": "git+https://github.com/epoberezkin/ajv.git#6.2.0",
+    "ajvErrors": "git+https://github.com/djdrisco/ajv-errors"
   },
   "devDependencies": {
     "mocha": ">=1.6.0",

@@ -8,13 +8,13 @@
  */
 (function(moduleFactory) {
     if(typeof exports === 'object') {
-        module.exports = moduleFactory(require('underscore'), require('backbone'), require('ajv'));
+        module.exports = moduleFactory(require('underscore'), require('backbone'), require('ajv'), require('ajvErrors'));
     } else if(typeof define === 'function' && define.amd) {
-        define(['underscore', 'backbone', 'ajv'], moduleFactory);
+        define(['underscore', 'backbone', 'ajv', 'ajvErrors'], moduleFactory);
     } else {
-        window.Backbone.Schema = moduleFactory(window._, window.Backbone, window.Ajv);
+        window.Backbone.Schema = moduleFactory(window._, window.Backbone, window.Ajv, window.AjvErrors);
     }
-}(function(_, Backbone, Ajv, undefined) {
+}(function(_, Backbone, Ajv, AjvErrors, undefined) {
     var Schema = {};
 
     function log() {}
@@ -995,7 +995,12 @@
                 }
             }, this);
 
-            var ajv = new Ajv({allErrors: true});
+            //ability to use custom ajv Error Messages specificied in json schema
+            //see docs at: https://github.com/djdrisco/ajv-errors
+
+            var ajv = new Ajv({allErrors: true, jsonPointers: true});
+            AjvErrors(ajv);
+
             var ajvCheckValidation = ajv.compile(this.schema);
             var validBoolean = ajvCheckValidation(this.toJSON());
 
