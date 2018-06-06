@@ -998,7 +998,7 @@
             //ability to use custom ajv Error Messages specificied in json schema
             //see docs at: https://github.com/djdrisco/ajv-errors
 
-            var ajv = new Ajv({allErrors: true, jsonPointers: true});
+            var ajv = new Ajv({allErrors: true, jsonPointers: true,schemaId: 'id'});
             AjvErrors(ajv);
 
             var ajvCheckValidation = ajv.compile(this.schema);
@@ -1006,6 +1006,7 @@
 
             // errors get stored in errors array
             var errors = ajvCheckValidation.errors;
+            //console.log('Invalid: ' + ajv.errorsText(ajvCheckValidation.errors));
 
 
             //loop thru attributes
@@ -1019,7 +1020,8 @@
 
                 //use filter
                 attributeErrors = _.filter(errors, function(element){
-                    var elementDataPathArray = element.dataPath.split('.');
+
+                    var elementDataPathArray = element.dataPath.split('/');
 
                     if(_.isUndefined(elementDataPathArray)===false) {
                         if (elementDataPathArray[0] === "") {
