@@ -998,7 +998,7 @@
             //ability to use custom ajv Error Messages specificied in json schema
             //see docs at: https://github.com/djdrisco/ajv-errors
 
-            var ajv = new Ajv({allErrors: true, jsonPointers: true,schemaId: 'id'});
+            var ajv = new Ajv({coerceTypes: true,allErrors: true, jsonPointers: true,schemaId: 'id'});
             AjvErrors(ajv);
 
             var ajvCheckValidation = ajv.compile(this.schema);
